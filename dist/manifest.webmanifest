@@ -1,0 +1,33 @@
+{
+  "name": "Puente de signos - Traductor de Lengua de Signos",
+  "short_name": "Puente de signos",
+  "description": "Traductor de Lengua de Signos a texto y voz en múltiples idiomas",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#0f172a",
+  "background_color": "#0f172a",
+  "lang": "es",
+  "categories": ["education", "accessibility", "utilities"],
+  "icons": [
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

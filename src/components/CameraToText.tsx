@@ -2,11 +2,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { LangDef } from "../i18n";
 import { t } from "../i18n";
 import { useTTS } from "../hooks/useSpeech";
-import { loadMediaPipeHands } from "../lib/mediapipeLoader";
+import { loadMediaPipeHolistic } from "../lib/mediapipeLoader";
 import {
   classifyHand,
+  GestureEngine,
   LetterStabilizer,
+  getNonManualMarkers,
   type Landmark,
+  type HolisticResults,
 } from "../lib/handClassifier";
 
 interface Props {
@@ -22,16 +25,18 @@ export default function CameraToText({ lang, onTranscript, canInstall, onInstall
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const handsRef = useRef<any>(null);
+  const holisticRef = useRef<any>(null);
   const rafRef = useRef<number | null>(null);
   const tipTrailRef = useRef<Landmark[]>([]);
   const stabilizerRef = useRef<LetterStabilizer | null>(null);
+  const gestureEngineRef = useRef<GestureEngine>(new GestureEngine());
 
   const [facing, setFacing] = useState<"user" | "environment">("user");
   const [active, setActive] = useState(false);
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
   const [letter, setLetter] = useState<string>("");
+  const [expression, setExpression] = useState<string>("");
   const [confidence, setConfidence] = useState(0);
   const [transcript, setTranscript] = useState<string>("");
   const [currentWord, setCurrentWord] = useState<string>("");
@@ -41,21 +46,19 @@ export default function CameraToText({ lang, onTranscript, canInstall, onInstall
 
   const { speak, speaking } = useTTS();
 
-  // Refs to keep latest values inside callbacks without re-binding hands
   const facingRef = useRef(facing);
   const showSkeletonRef = useRef(showSkeleton);
   useEffect(() => { facingRef.current = facing; }, [facing]);
   useEffect(() => { showSkeletonRef.current = showSkeleton; }, [showSkeleton]);
 
   /* ------------------------------------------------------------------ */
-  /* Hand-results processing                                            */
+  /* Holistic results processing                                        */
   /* ------------------------------------------------------------------ */
-  const onHandResults = useCallback((results: any) => {
+  const onResults = useCallback((results: any) => {
     const canvas = canvasRef.current;
     const video = videoRef.current;
     if (!canvas || !video) return;
 
-    // Match canvas to video size
     const w = video.videoWidth || 640;
     const h = video.videoHeight || 480;
     if (canvas.width !== w) canvas.width = w;
@@ -66,43 +69,93 @@ export default function CameraToText({ lang, onTranscript, canInstall, onInstall
     ctx.save();
     ctx.clearRect(0, 0, w, h);
 
-    // Mirror horizontally if front camera (so drawings line up with mirrored video)
     if (facingRef.current === "user") {
       ctx.translate(w, 0);
       ctx.scale(-1, 1);
     }
 
-    const hand = results.multiHandLandmarks?.[0] as Landmark[] | undefined;
-    if (hand && hand.length === 21) {
-      setHandDetected(true);
-
-      if (showSkeletonRef.current && window.drawConnectors && window.drawLandmarks) {
-        try {
-          window.drawConnectors(ctx, hand, window.HAND_CONNECTIONS, {
-            color: "#a5b4fc",
-            lineWidth: 4,
-          });
-          window.drawLandmarks(ctx, hand, {
-            color: "#fbbf24",
-            lineWidth: 1,
-            radius: 4,
-          });
-        } catch { /* ignore drawing errors */ }
+    // DRAWING
+    if (showSkeletonRef.current && window.drawConnectors && window.drawLandmarks) {
+      // Draw Pose
+      if (results.poseLandmarks) {
+        window.drawConnectors(ctx, results.poseLandmarks, [
+          [11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24]
+        ], { color: "#ffffff50", lineWidth: 2 });
       }
+      // Draw Hands
+      if (results.rightHandLandmarks) {
+        window.drawConnectors(ctx, results.rightHandLandmarks, window.HAND_CONNECTIONS, { color: "#fbbf24", lineWidth: 3 });
+        window.drawLandmarks(ctx, results.rightHandLandmarks, { color: "#fbbf24", radius: 2 });
+      }
+      if (results.leftHandLandmarks) {
+        window.drawConnectors(ctx, results.leftHandLandmarks, window.HAND_CONNECTIONS, { color: "#a5b4fc", lineWidth: 3 });
+        window.drawLandmarks(ctx, results.leftHandLandmarks, { color: "#a5b4fc", radius: 2 });
+      }
+      // Draw Face (simplified)
+      if (results.faceLandmarks) {
+        // Draw lips and eyes only for brevity/performance
+        const lips = [61,146,91,181,84,17,314,405,321,375,291,308,324,318,402,317,14,87,178,88,95,185,40,39,37,0,267,269,270,409,291];
+        lips.forEach(idx => {
+            const p = results.faceLandmarks[idx];
+            ctx.fillStyle = "#ff000050";
+            ctx.beginPath();
+            ctx.arc(p.x * w, p.y * h, 1, 0, 2*Math.PI);
+            ctx.fill();
+        });
+      }
+    }
 
-      // Update tip trail (use index tip for Z, pinky tip for J – we just track
-      // one representative point; classifier reads the whole trail)
-      const tip = hand[8]; // index tip
+    // GESTURE & LETTER CLASSIFICATION
+    const rightHand = results.rightHandLandmarks as Landmark[] | undefined;
+    const holisticData: HolisticResults = {
+      rightHandLandmarks: rightHand,
+      leftHandLandmarks: results.leftHandLandmarks,
+      poseLandmarks: results.poseLandmarks,
+      faceLandmarks: results.faceLandmarks
+    };
+
+    // 0. Update facial expression status
+    if (results.faceLandmarks) {
+       const nmm = getNonManualMarkers(results.faceLandmarks, results.poseLandmarks);
+       if (nmm.browsRaised) setExpression(lang.code === "es" ? "Pregunta" : "Question");
+       else if (nmm.browsFurrowed) setExpression(lang.code === "es" ? "Concentrado" : "Focused");
+       else if (nmm.mouthO) setExpression(lang.code === "es" ? "Sorpresa" : "Surprise");
+       else setExpression("");
+    }
+
+    // 1. Check for whole words first
+    const detectedWord = gestureEngineRef.current.push(holisticData);
+    if (detectedWord) {
+      const translated = t(lang.code, detectedWord);
+      setTranscript(prev => prev ? prev + " " + translated : translated);
+      if (autoSpeak) speak(translated, lang, 1);
+
+      // Visual feedback for word detection
+      setLetter("✨ " + translated);
+      setConfidence(100);
+
+      // Reset current word spelling to avoid mixing
+      setCurrentWord("");
+      stabilizerRef.current?.reset();
+
+      // Trigger a small haptic feedback if available (Android/PWA)
+      if (navigator.vibrate) navigator.vibrate(50);
+    }
+
+    // 2. Otherwise fallback to letter classification
+    else if (rightHand) {
+      setHandDetected(true);
+      const tip = rightHand[8];
       tipTrailRef.current.push({ x: tip.x, y: tip.y, z: tip.z });
       if (tipTrailRef.current.length > 15) tipTrailRef.current.shift();
 
-      const cls = classifyHand(hand, { recentTipTrail: tipTrailRef.current });
+      const cls = classifyHand(rightHand, { recentTipTrail: tipTrailRef.current });
       setLetter(cls.letter);
       setConfidence(Math.round(cls.confidence * 100));
       stabilizerRef.current?.push(cls);
     } else {
       setHandDetected(false);
-      setLetter("");
+      if (!detectedWord) setLetter("");
       setConfidence(0);
       tipTrailRef.current = [];
       stabilizerRef.current?.push({
@@ -111,7 +164,7 @@ export default function CameraToText({ lang, onTranscript, canInstall, onInstall
       });
     }
     ctx.restore();
-  }, []);
+  }, [lang, autoSpeak, speak]);
 
   /* ------------------------------------------------------------------ */
   /* Camera lifecycle                                                   */
@@ -135,15 +188,12 @@ export default function CameraToText({ lang, onTranscript, canInstall, onInstall
     setError(null);
     setStatus("loading");
     try {
-      // 1. Load MediaPipe (cached after first call)
-      const hands = await loadMediaPipeHands();
-      hands.onResults(onHandResults);
-      handsRef.current = hands;
+      const holistic = await loadMediaPipeHolistic();
+      holistic.onResults(onResults);
+      holisticRef.current = holistic;
 
-      // 2. Stop any previous stream BEFORE requesting a new one
       stopStream();
 
-      // 3. Request camera. Try exact facing first, fall back to ideal.
       let stream: MediaStream;
       try {
         stream = await navigator.mediaDevices.getUserMedia({
@@ -151,7 +201,6 @@ export default function CameraToText({ lang, onTranscript, canInstall, onInstall
           audio: false,
         });
       } catch {
-        // Some devices (desktops, single-cam phones) don't support `exact`
         stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: which },
           audio: false,
@@ -164,13 +213,12 @@ export default function CameraToText({ lang, onTranscript, canInstall, onInstall
       video.setAttribute("playsinline", "true");
       await video.play();
 
-      // 4. Start the per-frame send loop
       const sendLoop = async () => {
-        if (!streamRef.current || !handsRef.current || !videoRef.current) return;
+        if (!streamRef.current || !holisticRef.current || !videoRef.current) return;
         if (videoRef.current.readyState >= 2) {
           try {
-            await handsRef.current.send({ image: videoRef.current });
-          } catch { /* ignore transient errors */ }
+            await holisticRef.current.send({ image: videoRef.current });
+          } catch { /* ignore */ }
         }
         rafRef.current = requestAnimationFrame(sendLoop);
       };
@@ -185,7 +233,7 @@ export default function CameraToText({ lang, onTranscript, canInstall, onInstall
       setActive(false);
       stopStream();
     }
-  }, [lang.code, onHandResults, stopStream]);
+  }, [lang.code, onResults, stopStream]);
 
   const handleStart = () => startStream(facing);
 
@@ -205,19 +253,14 @@ export default function CameraToText({ lang, onTranscript, canInstall, onInstall
     }
   };
 
-  // Set up stabilizer once
   useEffect(() => {
     stabilizerRef.current = new LetterStabilizer(8, 0.55, (ltr) => {
       setCurrentWord((prev) => prev + ltr);
     });
   }, []);
 
-  // Cleanup on unmount
   useEffect(() => () => stopStream(), [stopStream]);
 
-  /* ------------------------------------------------------------------ */
-  /* Word / sentence handling                                           */
-  /* ------------------------------------------------------------------ */
   const commitWord = () => {
     const w = currentWord.trim();
     if (!w) return;
@@ -230,12 +273,8 @@ export default function CameraToText({ lang, onTranscript, canInstall, onInstall
 
   const backspace = () => setCurrentWord((w) => w.slice(0, -1));
 
-  /* ------------------------------------------------------------------ */
-  /* Render                                                             */
-  /* ------------------------------------------------------------------ */
   return (
     <div className="flex flex-col gap-4">
-      {/* Install banner for Option A */}
       {canInstall && onInstall && (
         <button
           onClick={onInstall}
@@ -252,7 +291,6 @@ export default function CameraToText({ lang, onTranscript, canInstall, onInstall
         </button>
       )}
 
-      {/* Video viewport */}
       <div className="relative aspect-[3/4] w-full overflow-hidden rounded-3xl bg-black shadow-2xl ring-1 ring-white/10">
         <video
           ref={videoRef}
@@ -261,7 +299,6 @@ export default function CameraToText({ lang, onTranscript, canInstall, onInstall
           className="h-full w-full object-cover"
           style={{ transform: facing === "user" ? "scaleX(-1)" : "none" }}
         />
-        {/* Overlay canvas for skeleton */}
         <canvas
           ref={canvasRef}
           className="pointer-events-none absolute inset-0 h-full w-full object-cover"
@@ -274,7 +311,7 @@ export default function CameraToText({ lang, onTranscript, canInstall, onInstall
             {status === "loading" && (
               <div className="flex items-center gap-2 text-indigo-300">
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-300 border-t-transparent" />
-                <span className="text-xs">Cargando modelo IA…</span>
+                <span className="text-xs">Cargando IA de Cuerpo Completo…</span>
               </div>
             )}
             {error && (
@@ -292,26 +329,25 @@ export default function CameraToText({ lang, onTranscript, canInstall, onInstall
 
         {active && (
           <>
-            {/* Hand-frame guide */}
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-              <div className={`h-[70%] w-[70%] rounded-3xl border-2 border-dashed transition-colors ${handDetected ? "border-emerald-400/80" : "border-indigo-300/50"} shadow-[0_0_40px_rgba(99,102,241,0.35)_inset]`} />
+              <div className={`h-[85%] w-[85%] rounded-3xl border-2 border-dashed transition-colors ${handDetected ? "border-emerald-400/80" : "border-indigo-300/50"}`} />
             </div>
 
-            {/* Top status bar */}
             <div className="absolute left-3 right-3 top-3 flex items-center justify-between">
               <div className="flex items-center gap-2 rounded-full bg-black/60 px-3 py-1.5 text-xs">
                 <span className="pulse-dot inline-block h-2.5 w-2.5 rounded-full bg-red-500" />
-                <span className="font-bold tracking-wider">{t(lang.code, "rec")}</span>
+                <span className="font-bold tracking-wider">LIVE</span>
               </div>
               <div className={`rounded-full px-3 py-1.5 text-xs font-semibold ${handDetected ? "bg-emerald-500/80" : "bg-black/60"}`}>
-                {handDetected ? "✋ " + (lang.code === "es" ? "Mano OK" : "Hand OK") : (lang.code === "es" ? "Sin mano" : "No hand")}
+                {handDetected ? "✋ OK" : (lang.code === "es" ? "Busca manos/cara" : "Seeking hand/face")}
               </div>
-              <div className="rounded-full bg-black/60 px-3 py-1.5 text-xs">
-                {lang.flag} {lang.name}
-              </div>
+              {expression && (
+                <div className="animate-bounce rounded-full bg-fuchsia-500/90 px-3 py-1.5 text-xs font-bold text-white shadow-lg">
+                  {expression}
+                </div>
+              )}
             </div>
 
-            {/* Detected letter overlay */}
             {letter && (
               <div key={letter} className="sign-pop absolute bottom-28 left-1/2 -translate-x-1/2 rounded-2xl bg-indigo-500/95 px-6 py-3 text-4xl font-extrabold text-white shadow-xl">
                 {letter}
@@ -321,32 +357,24 @@ export default function CameraToText({ lang, onTranscript, canInstall, onInstall
               </div>
             )}
 
-            {/* Current word being spelled */}
             <div className="absolute bottom-20 left-3 right-3 rounded-xl bg-black/70 px-3 py-2 text-center backdrop-blur">
-              <div className="text-[10px] uppercase tracking-wider text-white/50">
-                {lang.code === "es" ? "Letras detectadas" : "Detected letters"}
-              </div>
               <div className="font-mono text-xl font-bold tracking-[0.3em] text-emerald-300">
                 {currentWord || "—"}
               </div>
             </div>
 
-            {/* Bottom controls */}
             <div className="absolute bottom-3 left-3 right-3 flex items-center justify-center gap-2">
               <button
                 onClick={() => setShowSkeleton((v) => !v)}
                 className={`grid h-11 w-11 place-items-center rounded-full text-white backdrop-blur active:scale-95 ${showSkeleton ? "bg-amber-500/80" : "bg-white/15"}`}
-                title="Skeleton"
               >🦴</button>
               <button
                 onClick={handleSwitch}
                 className="grid h-11 w-11 place-items-center rounded-full bg-white/15 text-white backdrop-blur active:scale-95"
-                aria-label={t(lang.code, "switchCamera")}
               >🔄</button>
               <button
                 onClick={handleStop}
                 className="grid h-14 w-14 place-items-center rounded-full bg-red-500 text-white shadow-lg active:scale-95"
-                aria-label={t(lang.code, "stopCamera")}
               >■</button>
               <button
                 onClick={backspace}
@@ -355,33 +383,26 @@ export default function CameraToText({ lang, onTranscript, canInstall, onInstall
               <button
                 onClick={() => setAutoSpeak((v) => !v)}
                 className={`grid h-11 w-11 place-items-center rounded-full text-white backdrop-blur active:scale-95 ${autoSpeak ? "bg-emerald-500/80" : "bg-white/15"}`}
-                aria-label={t(lang.code, "voiceOn")}
               >{autoSpeak ? "🔊" : "🔇"}</button>
             </div>
           </>
         )}
       </div>
 
-      {/* Action row */}
       {active && (
         <div className="flex gap-2">
           <button
             onClick={() => setCurrentWord((w) => w + " ")}
             className="flex-1 rounded-xl bg-white/10 py-2 text-sm font-semibold active:scale-95"
-          >␣ {lang.code === "es" ? "Espacio" : "Space"}</button>
+          >␣ Espacio</button>
           <button
             onClick={commitWord}
             disabled={!currentWord.trim()}
             className="flex-1 rounded-xl bg-emerald-500 py-2 text-sm font-bold text-white active:scale-95 disabled:opacity-40"
-          >✓ {lang.code === "es" ? "Añadir palabra" : "Add word"}</button>
-          <button
-            onClick={() => { setCurrentWord(""); stabilizerRef.current?.reset(); }}
-            className="rounded-xl bg-white/10 px-3 py-2 text-sm active:scale-95"
-          >✕</button>
+          >✓ Palabra</button>
         </div>
       )}
 
-      {/* Transcript */}
       <div className="glass rounded-3xl p-4">
         <div className="mb-2 flex items-center justify-between">
           <h3 className="text-sm font-semibold uppercase tracking-wider text-white/70">
@@ -392,23 +413,11 @@ export default function CameraToText({ lang, onTranscript, canInstall, onInstall
               onClick={() => transcript && speak(transcript, lang)}
               disabled={!transcript || speaking}
               className="rounded-lg bg-indigo-500/80 px-3 py-1 text-xs font-semibold text-white disabled:opacity-40"
-            >🔊 {t(lang.code, "speak")}</button>
-            <button
-              onClick={async () => {
-                if (!transcript) return;
-                if (navigator.share) {
-                  try { await navigator.share({ title: t(lang.code, "appName"), text: transcript }); } catch {}
-                } else {
-                  await navigator.clipboard.writeText(transcript);
-                }
-              }}
-              disabled={!transcript}
-              className="rounded-lg bg-white/10 px-3 py-1 text-xs disabled:opacity-40"
-            >📤 {t(lang.code, "share")}</button>
+            >🔊</button>
             <button
               onClick={() => setTranscript("")}
               className="rounded-lg bg-white/10 px-3 py-1 text-xs"
-            >{t(lang.code, "clear")}</button>
+            >🗑️</button>
           </div>
         </div>
         <div
@@ -417,11 +426,6 @@ export default function CameraToText({ lang, onTranscript, canInstall, onInstall
         >
           {transcript || <span className="text-white/40">…</span>}
         </div>
-        <p className="mt-2 text-[11px] leading-relaxed text-white/50">
-          {lang.code === "es"
-            ? "💡 Mantén una letra ~1 s para confirmarla. Pulsa “Espacio” entre palabras y “Añadir palabra” para enviarla al texto."
-            : "💡 Hold a letter ~1 s to confirm it. Tap “Space” between words and “Add word” to commit it."}
-        </p>
       </div>
     </div>
   );

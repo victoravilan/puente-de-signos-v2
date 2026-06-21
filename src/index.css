@@ -64,5 +64,14 @@ div:has(> a[href*="arena"]),
   overflow: hidden !important;
 }
 
+/* Loading bar animation */
+@keyframes loadingBar {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(0); }
+}
+.animate-loading {
+  animation: loadingBar 2s ease-in-out forwards;
+}
+
 /* RTL support for Arabic */
 [dir="rtl"] { text-align: right; }

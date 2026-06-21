@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Puente de Signos</string>
+    <string name="title_activity_main">Puente de Signos</string>
+    <string name="package_name">com.vmac.puentedesignos.v2</string>
+    <string name="custom_url_scheme">com.vmac.puentedesignos.v2</string>
+</resources>

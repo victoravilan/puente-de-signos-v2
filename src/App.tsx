@@ -18,7 +18,14 @@ export default function App() {
   const [showLangPicker, setShowLangPicker] = useState(false);
   const [showIosHelp, setShowIosHelp] = useState(false);
   const [lines, setLines] = useState<ConvoLine[]>([]);
+  const [isInitializing, setIsInitializing] = useState(true);
   const lang = LANGUAGES.find(l => l.code === langCode)!;
+
+  // Initializing delay for professional splash feel
+  useEffect(() => {
+    const timer = setTimeout(() => setIsInitializing(false), 2000);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Apply RTL to <html> for Arabic
   useEffect(() => {
@@ -49,12 +56,25 @@ export default function App() {
       return;
     }
     const outcome = await promptInstall();
-    // If the browser hasn't fired beforeinstallprompt yet (e.g., first load),
-    // fall back to showing instructions so the user sees the action.
     if (!outcome) {
       setShowIosHelp(true);
     }
   };
+
+  if (isInitializing) {
+    return (
+      <div className="flex h-screen w-full flex-col items-center justify-center bg-slate-950">
+        <div className="relative h-32 w-32 animate-pulse">
+           <img src={LOGO_SRC} alt="Loading..." className="h-full w-full rounded-3xl shadow-2xl shadow-indigo-500/50" />
+           <div className="absolute inset-0 animate-ping rounded-3xl bg-indigo-500/20" />
+        </div>
+        <h1 className="mt-8 text-xl font-bold tracking-widest text-white">PUENTE DE SIGNOS</h1>
+        <div className="mt-4 h-1 w-48 overflow-hidden rounded-full bg-white/10">
+          <div className="h-full animate-loading bg-indigo-500" style={{ width: "100%" }} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
