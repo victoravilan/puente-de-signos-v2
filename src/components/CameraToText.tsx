@@ -277,23 +277,14 @@ export default function CameraToText({ lang, onTranscript, canInstall, onInstall
 
   return (
     <div className="flex flex-col gap-4">
-      {canInstall && onInstall && (
-        <button
-          onClick={onInstall}
-          className="flex items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 px-4 py-3 text-left ring-1 ring-emerald-400/30 backdrop-blur hover:from-emerald-500/30 hover:to-cyan-500/30 active:scale-[0.99]"
-        >
-          <div className="flex items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-500/90 text-xl shadow-lg">⬇</div>
-            <div>
-              <div className="text-sm font-bold leading-tight">{t(lang.code, "install")}</div>
-              <div className="text-[11px] text-white/70">{t(lang.code, "installSub")}</div>
-            </div>
-          </div>
-          <div className="text-xl opacity-70">›</div>
-        </button>
-      )}
+      {/* Dynamic Status Cards */}
+      <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+        <StatusChip active={handDetected} icon="✋" label={lang.code === "es" ? "Visión" : "Vision"} color="bg-emerald-500" />
+        {expression && <StatusChip active={true} icon="🎭" label={expression} color="bg-fuchsia-500 animate-pulse" />}
+        <StatusChip active={active} icon="🎥" label={status === "ready" ? "Live" : "Cam"} color="bg-indigo-500" />
+      </div>
 
-      <div className="relative aspect-[3/4] w-full overflow-hidden rounded-3xl bg-black shadow-2xl ring-1 ring-white/10">
+      <div className="group relative aspect-[3/4] w-full overflow-hidden rounded-[2.5rem] bg-slate-950 shadow-2xl ring-1 ring-white/10 transition-all hover:ring-white/20">
         <video
           ref={videoRef}
           playsInline
@@ -400,48 +391,63 @@ export default function CameraToText({ lang, onTranscript, canInstall, onInstall
         <div className="flex gap-2">
           <button
             onClick={() => setCurrentWord((w) => w + " ")}
-            className="flex-1 rounded-xl bg-white/10 py-2 text-sm font-semibold active:scale-95"
+            className="flex-1 rounded-2xl bg-white/10 py-3 text-sm font-semibold ring-1 ring-white/10 active:scale-95 transition-all hover:bg-white/15"
           >␣ Espacio</button>
           <button
             onClick={commitWord}
             disabled={!currentWord.trim()}
-            className="flex-1 rounded-xl bg-emerald-500 py-2 text-sm font-bold text-white active:scale-95 disabled:opacity-40"
+            className="flex-1 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 py-3 text-sm font-bold text-white shadow-lg active:scale-95 disabled:opacity-40"
           >✓ Palabra</button>
         </div>
       )}
 
-      <div className="glass rounded-3xl p-4">
-        <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-white/70">
-            {t(lang.code, "transcript")}
-          </h3>
+      <div className="glass overflow-hidden rounded-[2.5rem] p-6 ring-1 ring-white/5 shadow-inner">
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-indigo-400" />
+            <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">
+              {t(lang.code, "transcript")}
+            </h3>
+          </div>
           <div className="flex gap-2">
             <button
               onClick={() => transcript && speak(transcript, lang)}
               disabled={!transcript || speaking}
-              className="rounded-lg bg-indigo-500/80 px-3 py-1 text-xs font-semibold text-white disabled:opacity-40"
+              className="grid h-8 w-8 place-items-center rounded-full bg-indigo-500/80 text-white transition-all active:scale-95 disabled:opacity-40"
             >🔊</button>
             <button
               onClick={() => setTranscriptWords([])}
-              className="rounded-lg bg-white/10 px-3 py-1 text-xs"
+              className="grid h-8 w-8 place-items-center rounded-full bg-white/5 text-white/70 transition-all active:scale-95"
             >🗑️</button>
           </div>
         </div>
         <div
           dir={lang.rtl ? "rtl" : "ltr"}
-          className="flex min-h-[100px] flex-wrap gap-2 rounded-2xl bg-black/30 p-3"
+          className="flex min-h-[120px] flex-wrap content-start gap-2.5 rounded-3xl bg-slate-900/40 p-4 border border-white/5 shadow-inner"
         >
           {transcriptWords.length > 0 ? (
             transcriptWords.map((w, i) => (
-              <span key={i} className="animate-signPop rounded-xl bg-indigo-500/20 px-3 py-1 text-sm font-medium text-indigo-200 ring-1 ring-indigo-400/30">
+              <span key={i} className="animate-signPop rounded-2xl bg-gradient-to-br from-indigo-500/20 to-fuchsia-500/20 px-4 py-2 text-sm font-bold text-indigo-100 ring-1 ring-white/10 shadow-lg">
                 {w}
               </span>
             ))
           ) : (
-            <span className="text-sm italic text-white/30">Esperando traducción…</span>
+            <div className="flex w-full flex-col items-center justify-center gap-2 py-4">
+               <div className="h-1 w-8 rounded-full bg-white/10 animate-pulse" />
+               <span className="text-[11px] font-medium tracking-wide text-white/20 uppercase">Esperando interpretación...</span>
+            </div>
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function StatusChip({ active, icon, label, color }: { active: boolean; icon: string; label: string; color: string }) {
+  return (
+    <div className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-all duration-500 ${active ? color + " text-white shadow-lg" : "bg-white/5 text-white/30"}`}>
+      <span>{icon}</span>
+      <span>{label}</span>
     </div>
   );
 }

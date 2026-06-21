@@ -227,7 +227,9 @@ export class GestureEngine {
                  this.checkTiempo() ||
                  this.checkUrgente() ||
                  this.checkPorFavor() ||
-                 this.checkEntender();
+                 this.checkEntender() ||
+                 this.checkSaber() ||
+                 this.checkTrabajar();
 
     if (word) {
       this.history = [];
@@ -238,14 +240,50 @@ export class GestureEngine {
 
   private checkTiempo(): string | null {
     // TIEMPO (LSE): Right index taps left wrist.
+    // Enhanced: Check both hand landmarks and pose landmarks (wrist fallback)
     const last = this.history[this.history.length - 1];
     const rHand = last.rightHandLandmarks;
-    const lHand = last.leftHandLandmarks;
-    if (rHand && lHand) {
-      const d = dist(rHand[8], lHand[0]); // Right index tip to left wrist
-      if (d < 0.12) {
+    const lWrist = last.leftHandLandmarks?.[0] || last.poseLandmarks?.[15];
+
+    if (rHand && lWrist) {
+      const d = dist(rHand[8], lWrist); // Right index tip to left wrist/pose-wrist
+      if (d < 0.18) { // Relaxed distance
         const rf = getFingerState(rHand);
-        if (rf.index && !rf.middle) return "TIEMPO";
+        if (rf.index) return "TIEMPO";
+      }
+    }
+    return null;
+  }
+
+  private checkSaber(): string | null {
+    // SABER (LSE): Index finger to temple/forehead side.
+    const last = this.history[this.history.length - 1];
+    const rHand = last.rightHandLandmarks;
+    const temple = last.faceLandmarks?.[103] || last.faceLandmarks?.[332]; // Approx temple indices
+
+    if (rHand && temple) {
+      const d = dist(rHand[8], temple);
+      if (d < 0.15) {
+        const rf = getFingerState(rHand);
+        if (rf.index) return "SABER";
+      }
+    }
+    return null;
+  }
+
+  private checkTrabajar(): string | null {
+    // TRABAJAR (LSE): Both hands move together in front of chest.
+    const trailR = this.history.map(h => h.rightHandLandmarks?.[0]).filter(Boolean) as Landmark[];
+    const trailL = this.history.map(h => h.leftHandLandmarks?.[0]).filter(Boolean) as Landmark[];
+
+    if (trailR.length > 10 && trailL.length > 10) {
+      const lastR = trailR[trailR.length-1];
+      const lastL = trailL[trailL.length-1];
+      const d = dist(lastR, lastL);
+      if (d < 0.25) {
+        const dxR = trailR[trailR.length-1].x - trailR[0].x;
+        const dxL = trailL[trailL.length-1].x - trailL[0].x;
+        if (Math.abs(dxR) > 0.05 && Math.abs(dxL) > 0.05) return "TRABAJAR";
       }
     }
     return null;
