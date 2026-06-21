@@ -10,10 +10,11 @@
    - Detección de expresiones faciales para **Tonos de Pregunta**.
    - Añadidos gestos dinámicos complejos: **TIEMPO**, **URGENTE**, **POR FAVOR**, **ENTENDER**, **BIEN**, **AYUDA**.
    - Detección de trayectorias circulares y jitter para gestos realistas.
-5. **Estética de Vanguardia:** 
-   - Añadido **Efecto de Escaneo (Scanning)** láser en la cámara.
-   - Transcripción mejorada con **Burbujas de Texto** tipo mensajería.
-   - Animaciones refinadas y feedback visual vibrante.
+5. **Diseño de Nueva Generación (Premium UI):**
+   - **Splash Screen Evolucionada:** Logotipo flotante con efectos de profundidad y tipografía minimalista.
+   - **Home Screen Rediseñada:** Layout moderno con tarjetas de acción rápida (Tiles) que incluyen descripciones y efectos de cristal (Glassmorphism) profundos.
+   - **Experiencia Inmersiva:** Animaciones de entrada suaves (slide-in) y botones con sombras de luz (glow effects).
+   - **Identidad de Marca:** Reforzada la presencia de "Valor Agregado" y un estilo visual coherente tipo "Black Edition".
 
 ## 🚀 Próximos pasos (Al volver):
 1. **Terminal:** Abrir con `Alt + F12`.

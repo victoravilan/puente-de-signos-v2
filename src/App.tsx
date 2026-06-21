@@ -63,14 +63,22 @@ export default function App() {
 
   if (isInitializing) {
     return (
-      <div className="flex h-screen w-full flex-col items-center justify-center bg-slate-950">
-        <div className="relative h-32 w-32 animate-pulse">
-           <img src={LOGO_SRC} alt="Loading..." className="h-full w-full rounded-3xl shadow-2xl shadow-indigo-500/50" />
-           <div className="absolute inset-0 animate-ping rounded-3xl bg-indigo-500/20" />
+      <div className="flex h-screen w-full flex-col items-center justify-center bg-slate-950 overflow-hidden">
+        <div className="relative">
+          <div className="relative z-10 h-32 w-32 animate-[float_3s_ease-in-out_infinite]">
+             <img src={LOGO_SRC} alt="Loading..." className="h-full w-full rounded-[2rem] shadow-[0_0_50px_rgba(99,102,241,0.4)] ring-1 ring-white/20" />
+          </div>
+          <div className="absolute inset-0 -z-0 h-32 w-32 scale-150 animate-pulse rounded-full bg-indigo-500/20 blur-3xl" />
         </div>
-        <h1 className="mt-8 text-xl font-bold tracking-widest text-white">PUENTE DE SIGNOS</h1>
-        <div className="mt-4 h-1 w-48 overflow-hidden rounded-full bg-white/10">
-          <div className="h-full animate-loading bg-indigo-500" style={{ width: "100%" }} />
+        <div className="mt-12 flex flex-col items-center gap-2">
+          <h1 className="text-2xl font-black tracking-[0.3em] text-white">PUENTE</h1>
+          <h2 className="text-sm font-light tracking-[0.5em] text-indigo-300/80">DE SIGNOS</h2>
+        </div>
+        <div className="mt-10 h-1 w-48 overflow-hidden rounded-full bg-white/5">
+          <div className="h-full animate-loading bg-gradient-to-r from-indigo-500 to-fuchsia-500" style={{ width: "100%" }} />
+        </div>
+        <div className="absolute bottom-10 text-[10px] font-medium tracking-widest text-white/20 uppercase">
+          Powered by Valor Agregado AI
         </div>
       </div>
     );
@@ -292,89 +300,118 @@ function Home({
   onInstall: () => void;
 }) {
   return (
-    <div className="flex flex-col gap-5">
-      {/* Hero */}
-      <section className="glass relative overflow-hidden rounded-3xl p-6 text-center">
-        <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-fuchsia-500/30 blur-3xl" />
-        <div className="absolute -left-10 -bottom-10 h-40 w-40 rounded-full bg-indigo-500/30 blur-3xl" />
-        <div className="relative">
-          <img src={LOGO_SRC} alt="Puente de signos" className="mx-auto mb-3 h-24 w-24 rounded-3xl shadow-2xl shadow-indigo-500/40 ring-1 ring-white/10" />
-          <h1 className="text-2xl font-extrabold">{t(lang.code, "welcome")}</h1>
-          <p className="mt-2 text-sm text-white/70">{t(lang.code, "intro")}</p>
+    <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      {/* Hero Section - High End */}
+      <section className="relative overflow-hidden rounded-[2.5rem] bg-slate-900/50 p-8 text-center ring-1 ring-white/10 shadow-2xl">
+        <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-fuchsia-600/10 blur-[80px]" />
+        <div className="absolute -left-20 -bottom-20 h-64 w-64 rounded-full bg-indigo-600/10 blur-[80px]" />
+
+        <div className="relative z-10 flex flex-col items-center">
+          <div className="mb-6 h-28 w-28 rounded-[2rem] bg-gradient-to-br from-indigo-500 to-fuchsia-500 p-[2px] shadow-2xl">
+            <div className="h-full w-full rounded-[1.9rem] bg-slate-950 p-4">
+              <img src={LOGO_SRC} alt="Puente de signos" className="h-full w-full object-contain" />
+            </div>
+          </div>
+          <h1 className="text-3xl font-black tracking-tight text-white">{t(lang.code, "welcome")}</h1>
+          <p className="mt-3 max-w-[240px] text-sm leading-relaxed text-slate-400 font-medium">
+            {t(lang.code, "intro")}
+          </p>
           <button
             onClick={() => go("cam")}
-            className="mt-5 rounded-2xl bg-gradient-to-r from-indigo-500 to-fuchsia-500 px-6 py-3 text-base font-bold shadow-lg shadow-indigo-500/30 active:scale-95"
-          >▶ {t(lang.code, "cta")}</button>
+            className="mt-8 flex items-center gap-3 rounded-2xl bg-white px-8 py-4 text-sm font-black text-slate-950 shadow-[0_0_30px_rgba(255,255,255,0.3)] transition-all active:scale-95 active:shadow-none"
+          >
+            <span className="text-lg">✨</span>
+            {t(lang.code, "cta").toUpperCase()}
+          </button>
         </div>
       </section>
 
-      {/* Install banner — only if installable and NOT installed */}
-      {canInstall && (
-        <button
-          onClick={onInstall}
-          className="group relative overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 p-4 text-left shadow-xl shadow-emerald-500/30 active:scale-[0.98]"
-        >
-          <div className="absolute -right-6 -top-6 text-8xl opacity-20 transition group-hover:scale-110">📲</div>
-          <div className="relative flex items-center gap-3">
-            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-white/20 text-2xl backdrop-blur">⬇</div>
-            <div className="flex-1">
-              <div className="text-base font-extrabold leading-tight">{t(lang.code, "install")}</div>
-              <div className="text-xs text-white/85">{t(lang.code, "installSub")}</div>
-            </div>
-            <span className="text-xl">›</span>
-          </div>
-        </button>
-      )}
-
-      {isInstalled && (
-        <div className="flex items-center gap-2 rounded-2xl bg-emerald-500/15 px-4 py-3 text-sm text-emerald-200 ring-1 ring-emerald-400/30">
-          <span className="text-lg">✅</span>
-          <span className="font-semibold">{t(lang.code, "installed")}</span>
-        </div>
-      )}
-
-      {/* Quick actions */}
-      <section className="grid grid-cols-2 gap-3">
-        <Tile color="from-sky-500 to-indigo-600" icon="📷" label={t(lang.code, "camToText")} onClick={() => go("cam")} />
-        <Tile color="from-fuchsia-500 to-pink-600" icon="✋" label={t(lang.code, "textToSign")} onClick={() => go("tts")} />
-        <Tile color="from-violet-500 to-purple-600" icon="📖" label={t(lang.code, "dictionary")} onClick={() => go("dict")} />
-        <Tile color="from-emerald-500 to-teal-600" icon="🔤" label={t(lang.code, "alphabet")} onClick={() => go("abc")} />
-        <Tile color="from-amber-500 to-orange-600" icon="📺" label={t(lang.code, "teleprompter")} onClick={() => go("tp")} />
-        <Tile color="from-rose-500 to-red-600" icon="💡" label={t(lang.code, "suggest")} onClick={() => go("dict")} />
+      {/* Grid Actions */}
+      <section className="grid grid-cols-2 gap-4">
+        <Tile
+          color="bg-indigo-600"
+          icon="📷"
+          label={t(lang.code, "camToText")}
+          description="Interpretación IA"
+          onClick={() => go("cam")}
+        />
+        <Tile
+          color="bg-fuchsia-600"
+          icon="✋"
+          label={t(lang.code, "textToSign")}
+          description="Aprender signos"
+          onClick={() => go("tts")}
+        />
+        <Tile
+          color="bg-slate-800"
+          icon="📖"
+          label={t(lang.code, "dictionary")}
+          description="LSE Catálogo"
+          onClick={() => go("dict")}
+        />
+        <Tile
+          color="bg-slate-800"
+          icon="🔤"
+          label={t(lang.code, "alphabet")}
+          description="Dactilológico"
+          onClick={() => go("abc")}
+        />
       </section>
 
-      {/* About */}
-      <section className="glass rounded-3xl p-5">
-        <h2 className="mb-2 text-lg font-bold">📚 {t(lang.code, "aboutTitle")}</h2>
-        <p className="text-sm leading-relaxed text-white/75">{t(lang.code, "aboutBody")}</p>
-        <p className="mt-3 rounded-xl bg-amber-400/10 p-3 text-xs leading-relaxed text-amber-100/90 ring-1 ring-amber-300/30">
-          ⚠️ {t(lang.code, "note")}
-        </p>
+      {/* Secondary Actions */}
+      <div className="grid grid-cols-1 gap-3">
+         <button
+           onClick={() => go("tp")}
+           className="glass flex items-center justify-between rounded-3xl p-5 transition-all active:scale-[0.98] ring-1 ring-white/5"
+         >
+           <div className="flex items-center gap-4">
+              <div className="grid h-12 w-12 place-items-center rounded-2xl bg-amber-500/20 text-2xl">📺</div>
+              <div className="text-left">
+                <div className="text-sm font-bold text-white">{t(lang.code, "teleprompter")}</div>
+                <div className="text-[11px] text-slate-500 font-medium">Modo conversación asistida</div>
+              </div>
+           </div>
+           <span className="text-xl text-slate-600">›</span>
+         </button>
+      </div>
+
+      {/* Info Card */}
+      <section className="glass rounded-[2rem] p-6 ring-1 ring-white/5 shadow-inner">
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-xl">📚</span>
+          <h2 className="text-sm font-bold tracking-wide uppercase text-white/80">{t(lang.code, "aboutTitle")}</h2>
+        </div>
+        <p className="text-xs leading-relaxed text-slate-400 font-medium">{t(lang.code, "aboutBody")}</p>
       </section>
 
       {/* Footer */}
-      <footer className="space-y-1 pt-2 text-center">
-        <div className="text-[12px] font-medium text-white/70">
-          Creado por Victor M.F. Avilan
-        </div>
-        <div className="text-[11px] text-white/40">
-          Todos los derechos reservados. Valor Agregado 2026
-        </div>
+      <footer className="py-6 flex flex-col items-center gap-1 opacity-40">
+        <div className="h-[1px] w-12 bg-white/20 mb-4" />
+        <div className="text-[10px] font-bold tracking-[0.2em] text-white">VICTOR M.F. AVILAN</div>
+        <div className="text-[9px] font-medium text-white/50 tracking-widest uppercase">VALOR AGREGADO © 2026</div>
       </footer>
     </div>
   );
 }
 
-function Tile({ color, icon, label, onClick }: { color: string; icon: string; label: string; onClick: () => void }) {
+function Tile({ color, icon, label, description, onClick }: { color: string; icon: string; label: string; description: string; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className={`group relative aspect-square overflow-hidden rounded-3xl bg-gradient-to-br ${color} p-4 text-left shadow-lg active:scale-95`}
+      className={`group relative flex flex-col items-start justify-between overflow-hidden rounded-[2rem] p-6 text-left transition-all active:scale-95 shadow-xl ${color} ring-1 ring-white/10`}
     >
-      <div className="absolute -bottom-4 -right-4 text-7xl opacity-30 transition group-hover:scale-110">{icon}</div>
-      <div className="relative flex h-full flex-col justify-between">
-        <div className="text-3xl">{icon}</div>
-        <div className="text-base font-bold leading-tight text-white drop-shadow">{label}</div>
+      <div className="absolute -right-4 -top-4 text-8xl opacity-10 transition-transform duration-700 group-hover:scale-125 group-hover:rotate-12 select-none">
+        {icon}
+      </div>
+
+      <div className="relative z-10 flex h-full flex-col justify-between gap-8 w-full">
+        <div className="grid h-12 w-12 place-items-center rounded-2xl bg-white/10 text-2xl backdrop-blur-md shadow-inner ring-1 ring-white/20">
+          {icon}
+        </div>
+        <div>
+          <div className="text-sm font-black leading-tight text-white drop-shadow-md">{label}</div>
+          <div className="mt-1 text-[10px] font-medium text-white/60 tracking-wide">{description}</div>
+        </div>
       </div>
     </button>
   );

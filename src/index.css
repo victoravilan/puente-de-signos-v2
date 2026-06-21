@@ -73,6 +73,27 @@ div:has(> a[href*="arena"]),
   animation: loadingBar 2s ease-in-out forwards;
 }
 
+/* Floating animation for logo */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-20px); }
+}
+
+/* Base resets and scroll behaviors */
+* {
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+}
+
+/* Entrance animations */
+@keyframes slideInFromBottom {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.animate-in {
+  animation: slideInFromBottom 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 /* Scanning line animation */
 @keyframes scan {
   0% { top: 0%; opacity: 0; }
