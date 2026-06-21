@@ -73,5 +73,15 @@ div:has(> a[href*="arena"]),
   animation: loadingBar 2s ease-in-out forwards;
 }
 
+/* Scanning line animation */
+@keyframes scan {
+  0% { top: 0%; opacity: 0; }
+  50% { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+.animate-scan {
+  animation: scan 3s linear infinite;
+}
+
 /* RTL support for Arabic */
 [dir="rtl"] { text-align: right; }

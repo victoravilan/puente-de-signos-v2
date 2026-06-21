@@ -223,11 +223,75 @@ export class GestureEngine {
                  this.checkNo() ||
                  this.checkNoticias() ||
                  this.checkBien() ||
-                 this.checkAyuda();
+                 this.checkAyuda() ||
+                 this.checkTiempo() ||
+                 this.checkUrgente() ||
+                 this.checkPorFavor() ||
+                 this.checkEntender();
 
     if (word) {
       this.history = [];
       return word + suffix;
+    }
+    return null;
+  }
+
+  private checkTiempo(): string | null {
+    // TIEMPO (LSE): Right index taps left wrist.
+    const last = this.history[this.history.length - 1];
+    const rHand = last.rightHandLandmarks;
+    const lHand = last.leftHandLandmarks;
+    if (rHand && lHand) {
+      const d = dist(rHand[8], lHand[0]); // Right index tip to left wrist
+      if (d < 0.12) {
+        const rf = getFingerState(rHand);
+        if (rf.index && !rf.middle) return "TIEMPO";
+      }
+    }
+    return null;
+  }
+
+  private checkUrgente(): string | null {
+    // URGENTE (LSE): Rapid fluttering of fingers near chest.
+    const trail = this.history.map(h => h.rightHandLandmarks?.[0]).filter(Boolean) as Landmark[];
+    if (trail.length > 20) {
+      const dx = Math.max(...trail.map(p=>p.x)) - Math.min(...trail.map(p=>p.x));
+      const dy = Math.max(...trail.map(p=>p.y)) - Math.min(...trail.map(p=>p.y));
+      // Look for rapid small oscillations (jitter)
+      let jitter = 0;
+      for(let i=1; i<trail.length; i++) jitter += dist(trail[i], trail[i-1]);
+      if (jitter > 0.4 && dx < 0.2 && dy < 0.2) return "URGENTE";
+    }
+    return null;
+  }
+
+  private checkPorFavor(): string | null {
+    // POR FAVOR (LSE): Hand flat on chest moving in circle.
+    const trail = this.history.map(h => h.rightHandLandmarks?.[0]).filter(Boolean) as Landmark[];
+    if (trail.length > 20) {
+      const dx = Math.max(...trail.map(p=>p.x)) - Math.min(...trail.map(p=>p.x));
+      const dy = Math.max(...trail.map(p=>p.y)) - Math.min(...trail.map(p=>p.y));
+      if (dx > 0.1 && dy > 0.1) {
+        // Simple circular check: check if it returns near start
+        const dStartEnd = dist(trail[0], trail[trail.length-1]);
+        if (dStartEnd < 0.1) return "POR FAVOR";
+      }
+    }
+    return null;
+  }
+
+  private checkEntender(): string | null {
+    // ENTENDER (LSE): Index finger flicking up from forehead.
+    const last = this.history[this.history.length - 1];
+    const first = this.history[0];
+    const forehead = last.faceLandmarks?.[10];
+    const indexTip = last.rightHandLandmarks?.[8];
+    const startIndexTip = first.rightHandLandmarks?.[8];
+
+    if (forehead && indexTip && startIndexTip) {
+      const dStart = dist(startIndexTip, forehead);
+      const moveUp = (startIndexTip.y - indexTip.y) > 0.1;
+      if (dStart < 0.15 && moveUp) return "ENTENDER";
     }
     return null;
   }

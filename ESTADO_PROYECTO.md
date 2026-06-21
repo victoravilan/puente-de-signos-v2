@@ -4,17 +4,16 @@
 
 ## ✅ Lo que hemos logrado hoy:
 1. **Seguridad:** Repositorio inicializado y conectado a GitHub: `https://github.com/victoravilan/puente-de-signos-v2`.
-2. **Infraestructura:** Capacitor instalado y configurado para Android (`com.vmac.puentedesignos.v2`).
-3. **IA de Visión:** Actualizado de `Hands` a `MediaPipe Holistic` (detecta cuerpo, cara y manos).
+2. **Infraestructura:** Capacitor instalado y configurado para Android.
+3. **IA de Visión:** Actualizado a `MediaPipe Holistic` (Cuerpo, Cara, Manos).
 4. **Motor de Lenguaje Natural:** 
-   - Implementado `getNonManualMarkers` para detectar expresiones faciales (cejas, boca).
-   - El sistema ahora detecta **Tonos de Pregunta** (añade "?" si las cejas están levantadas).
-   - Añadidos gestos dinámicos avanzados: **BIEN** y **AYUDA**.
-   - Refinado el `GestureEngine` para analizar trayectorias 3D (Z-axis) más precisas.
-5. **UI/UX Profesional:** 
-   - Pantalla de carga (Splash) elegante.
-   - Indicador visual de **Expresión Detectada** (Pregunta, Concentrado, Sorpresa).
-   - Vibración háptica en detección.
+   - Detección de expresiones faciales para **Tonos de Pregunta**.
+   - Añadidos gestos dinámicos complejos: **TIEMPO**, **URGENTE**, **POR FAVOR**, **ENTENDER**, **BIEN**, **AYUDA**.
+   - Detección de trayectorias circulares y jitter para gestos realistas.
+5. **Estética de Vanguardia:** 
+   - Añadido **Efecto de Escaneo (Scanning)** láser en la cámara.
+   - Transcripción mejorada con **Burbujas de Texto** tipo mensajería.
+   - Animaciones refinadas y feedback visual vibrante.
 
 ## 🚀 Próximos pasos (Al volver):
 1. **Terminal:** Abrir con `Alt + F12`.

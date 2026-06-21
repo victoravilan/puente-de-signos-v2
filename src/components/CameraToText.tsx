@@ -38,13 +38,15 @@ export default function CameraToText({ lang, onTranscript, canInstall, onInstall
   const [letter, setLetter] = useState<string>("");
   const [expression, setExpression] = useState<string>("");
   const [confidence, setConfidence] = useState(0);
-  const [transcript, setTranscript] = useState<string>("");
+  const [transcriptWords, setTranscriptWords] = useState<string[]>([]);
   const [currentWord, setCurrentWord] = useState<string>("");
   const [autoSpeak, setAutoSpeak] = useState(true);
   const [handDetected, setHandDetected] = useState(false);
   const [showSkeleton, setShowSkeleton] = useState(true);
 
   const { speak, speaking } = useTTS();
+
+  const transcript = transcriptWords.join(" ");
 
   const facingRef = useRef(facing);
   const showSkeletonRef = useRef(showSkeleton);
@@ -127,7 +129,7 @@ export default function CameraToText({ lang, onTranscript, canInstall, onInstall
     const detectedWord = gestureEngineRef.current.push(holisticData);
     if (detectedWord) {
       const translated = t(lang.code, detectedWord);
-      setTranscript(prev => prev ? prev + " " + translated : translated);
+      setTranscriptWords(prev => [...prev, translated]);
       if (autoSpeak) speak(translated, lang, 1);
 
       // Visual feedback for word detection
@@ -264,7 +266,7 @@ export default function CameraToText({ lang, onTranscript, canInstall, onInstall
   const commitWord = () => {
     const w = currentWord.trim();
     if (!w) return;
-    setTranscript((prev) => (prev ? prev + " " + w : w));
+    setTranscriptWords((prev) => [...prev, w]);
     onTranscript?.(w);
     if (autoSpeak) speak(w, lang, 1);
     setCurrentWord("");
@@ -296,13 +298,18 @@ export default function CameraToText({ lang, onTranscript, canInstall, onInstall
           ref={videoRef}
           playsInline
           muted
-          className="h-full w-full object-cover"
+          className="h-full w-full object-cover opacity-90"
           style={{ transform: facing === "user" ? "scaleX(-1)" : "none" }}
         />
         <canvas
           ref={canvasRef}
           className="pointer-events-none absolute inset-0 h-full w-full object-cover"
         />
+
+        {/* Scanning Effect */}
+        {active && (
+           <div className="pointer-events-none absolute inset-x-0 h-1 bg-indigo-500/50 blur-[2px] shadow-[0_0_15px_rgba(99,102,241,0.8)] animate-scan" />
+        )}
 
         {!active && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-gradient-to-b from-slate-900/80 to-slate-950 p-6 text-center">
@@ -349,7 +356,7 @@ export default function CameraToText({ lang, onTranscript, canInstall, onInstall
             </div>
 
             {letter && (
-              <div key={letter} className="sign-pop absolute bottom-28 left-1/2 -translate-x-1/2 rounded-2xl bg-indigo-500/95 px-6 py-3 text-4xl font-extrabold text-white shadow-xl">
+              <div key={letter} className={`sign-pop absolute bottom-28 left-1/2 -translate-x-1/2 rounded-2xl px-6 py-3 text-4xl font-extrabold text-white shadow-xl ${letter.includes("✨") ? "bg-fuchsia-600 ring-2 ring-fuchsia-300" : "bg-indigo-500/95"}`}>
                 {letter}
                 <div className="mt-1 text-center text-[10px] font-medium opacity-80">
                   {confidence}% {t(lang.code, "detected")}
@@ -415,16 +422,24 @@ export default function CameraToText({ lang, onTranscript, canInstall, onInstall
               className="rounded-lg bg-indigo-500/80 px-3 py-1 text-xs font-semibold text-white disabled:opacity-40"
             >🔊</button>
             <button
-              onClick={() => setTranscript("")}
+              onClick={() => setTranscriptWords([])}
               className="rounded-lg bg-white/10 px-3 py-1 text-xs"
             >🗑️</button>
           </div>
         </div>
         <div
           dir={lang.rtl ? "rtl" : "ltr"}
-          className="min-h-[80px] whitespace-pre-wrap rounded-xl bg-black/30 p-3 text-lg leading-relaxed"
+          className="flex min-h-[100px] flex-wrap gap-2 rounded-2xl bg-black/30 p-3"
         >
-          {transcript || <span className="text-white/40">…</span>}
+          {transcriptWords.length > 0 ? (
+            transcriptWords.map((w, i) => (
+              <span key={i} className="animate-signPop rounded-xl bg-indigo-500/20 px-3 py-1 text-sm font-medium text-indigo-200 ring-1 ring-indigo-400/30">
+                {w}
+              </span>
+            ))
+          ) : (
+            <span className="text-sm italic text-white/30">Esperando traducción…</span>
+          )}
         </div>
       </div>
     </div>
